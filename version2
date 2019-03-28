@@ -1,0 +1,90 @@
+# Making use of systemd, replace and url modules
+
+=======================================================================================================================================
+=======================================================================================================================================
+
+---
+- name: This will install LAMP stack on a remote server
+  hosts: webservers
+  become: True
+  tasks:
+    - name: install Apache web server
+      yum: name=httpd state=present
+
+    - name: Install PHP
+      yum: "name={{item}} state=present"
+      with_items:
+        - php
+        - php-mysql
+        - php-mbstring
+
+    - name: Install MariaDB
+      yum: name=mariadb-server state=present
+   
+    - name: Edit http welcome.conf to show index on home page or wget  
+      replace:
+        path: /etc/httpd/conf.d/welcome.conf
+        regexp: '-Indexes'
+        replace: '+Indexes'
+   
+    - name: Enable services for reboot           
+      systemd: 
+        name: "{{item}}"
+        enabled: yes
+      with_items:
+          - httpd
+          - mariadb
+
+    - name: Start the services
+      systemd:
+        name: "{{item}}"
+        state: started
+      with_items:
+          - httpd
+          - mariadb
+
+    - name: Test the http service 
+      uri:
+        url: http://localhost:80/
+(END)
+
+=======================================================================================================================================
+=======================================================================================================================================
+
+[ec2-user@ip-172-31-33-0 ansible_playbooks]$ ansible-playbook -i hosts lamp_install.yml 
+
+PLAY [This will install LAMP stack on a remote server] *******************************************
+
+TASK [Gathering Facts] ***************************************************************************
+ok: [172.31.43.162]
+
+TASK [install Apache web server] *****************************************************************
+ok: [172.31.43.162]
+
+TASK [Install PHP] *******************************************************************************
+ok: [172.31.43.162] => (item=[u'php', u'php-mysql', u'php-mbstring'])
+
+TASK [Install MariaDB] ***************************************************************************
+ok: [172.31.43.162]
+
+TASK [Edit http welcome.conf to show index on home page or wget] *********************************
+changed: [172.31.43.162]
+
+TASK [Enable services for reboot] ****************************************************************
+ok: [172.31.43.162] => (item=httpd)
+ok: [172.31.43.162] => (item=mariadb)
+
+TASK [Start the services] ************************************************************************
+changed: [172.31.43.162] => (item=httpd)
+ok: [172.31.43.162] => (item=mariadb)
+
+TASK [Test the http service] *********************************************************************
+ok: [172.31.43.162]
+
+PLAY RECAP ***************************************************************************************
+172.31.43.162              : ok=8    changed=2    unreachable=0    failed=0   
+
+[ec2-user@ip-172-31-33-0 ansible_playbooks]$ 
+
+=======================================================================================================================================
+=======================================================================================================================================
